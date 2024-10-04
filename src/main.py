@@ -58,15 +58,74 @@ train_data = load_json_files(train_dir)
 
 total_count, subtotal_count, tax_images, entite_counts, total_positions, tax_counts_per_image = analyze_json_data(train_data)
 
-# *** Vérification des positions des montants totaux ***
-if total_positions:
-    avg_x = np.mean([pos[0] for pos in total_positions])
-    avg_y = np.mean([pos[1] for pos in total_positions])
-    print(f"Le montant total est souvent situé à la position moyenne (X: {avg_x:.2f}, Y: {avg_y:.2f}).")
-else:
-    print("Aucun montant total trouvé.")
 
-# *** Création d'un graphique pour les entités et identification de l'entité la moins représentée ***
+# --------------------------------------------------------------------------------------------------------------
+
+# *** Question 1 - Vérification des positions des montants totaux ***
+
+# *** Camembert pour Total et Sous-total ***
+labels = ['Total', 'Sous-total']
+sizes = [total_count, subtotal_count]
+plt.figure(figsize=(6, 6))
+plt.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=140)
+plt.title('Distribution des Totaux et Sous-totaux')
+plt.axis('equal')  # Pour un camembert circulaire
+plt.show()
+
+# --------------------------------------------------------------------------------------------------------------
+
+# *** Question 2 - Distribution des taxes par nombre d'images ***
+tax_count_distribution = Counter(tax_counts_per_image)
+
+# Créer un DataFrame pour la distribution des taxes
+tax_distribution_df = pd.DataFrame(tax_count_distribution.items(), columns=['Nombre de Taxes', 'Nombre d\'Images'])
+tax_distribution_df.sort_values(by='Nombre de Taxes', inplace=True)
+
+# Produire un graphique pour le nombre d'images par nombre de taxes (avec Y comme nombre de taxes et X comme nombre d'images)
+plt.figure(figsize=(10, 6))
+plt.bar(tax_distribution_df['Nombre d\'Images'], tax_distribution_df['Nombre de Taxes'])
+plt.title('Distribution du Nombre de Taxes par Nombre d\'Images')
+plt.xlabel('Nombre d\'Images')
+plt.ylabel('Total des Taxes')
+plt.xticks(tax_distribution_df['Nombre d\'Images'])  # Étiquettes sur l'axe X
+min_y = tax_distribution_df['Nombre de Taxes'].min()
+max_y = tax_distribution_df['Nombre de Taxes'].max()
+plt.yticks(range(min_y, max_y + 1))
+plt.show()
+
+# Compter le nombre d'images ayant plus de 1 taxe
+images_with_multiple_taxes = sum(1 for count in tax_counts_per_image if count > 1)
+print(f"Nombre d'images ayant plusieurs taxes : {images_with_multiple_taxes}")
+
+
+# --------------------------------------------------------------------------------------------------------------
+
+# *** Question 3 - HEATMAP pour les positions des montants totaux ***
+
+# *** HEATMAP pour les positions des montants totaux ***
+heatmap_data = np.zeros((1296, 864))  # Dimensions de l'image (hauteur, largeur)
+
+# Remplir la heatmap avec les positions des montants totaux
+for pos in total_positions:
+    x_center = int((pos[0] + pos[2]) / 2)
+    y_center = int((pos[1] + pos[3]) / 2)
+    if 0 <= x_center < 864 and 0 <= y_center < 1296:
+        heatmap_data[y_center, x_center] += 1
+
+# Option 1 : Application d'un filtre gaussien pour lisser la heatmap
+heatmap_data_smoothed = gaussian_filter(heatmap_data, sigma=10)  # Ajustez sigma pour plus ou moins de lissage
+
+plt.figure(figsize=(10, 6))
+sns.heatmap(heatmap_data_smoothed, cmap="YlGnBu", cbar_kws={'label': 'Fréquence des montants totaux'})
+plt.title('Heatmap des positions des Montants Totaux (avec lissage)')
+plt.xlabel('Position X')
+plt.ylabel('Position Y')
+plt.gca().invert_yaxis()
+
+plt.show()
+
+# --------------------------------------------------------------------------------------------------------------
+# *** Question 4 - Création d'un graphique pour les entités et identification de l'entité la moins représentée ***
 if entite_counts:
     entite_df = pd.DataFrame.from_dict(entite_counts, orient='index', columns=['Occurrences'])
     
@@ -89,68 +148,4 @@ if entite_counts:
 else:
     print("Aucune entité trouvée pour l'analyse.")
 
-# *** Camembert pour Total et Sous-total ***
-labels = ['Total', 'Sous-total']
-sizes = [total_count, subtotal_count]
-plt.figure(figsize=(6, 6))
-plt.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=140)
-plt.title('Distribution des Totaux et Sous-totaux')
-plt.axis('equal')  # Pour un camembert circulaire
-plt.show()
 
-# *** HEATMAP pour les positions des montants totaux ***
-heatmap_data = np.zeros((1296, 864))  # Dimensions de l'image (hauteur, largeur)
-
-for pos in total_positions:
-    x_center = int((pos[0] + pos[2]) / 2)
-    y_center = int((pos[1] + pos[3]) / 2)
-    if 0 <= x_center < 864 and 0 <= y_center < 1296:
-        heatmap_data[y_center, x_center] += 1
-
-# Option 1 : Application d'un filtre gaussien pour lisser la heatmap
-heatmap_data_smoothed = gaussian_filter(heatmap_data, sigma=10)  # Ajustez sigma pour plus ou moins de lissage
-
-plt.figure(figsize=(10, 6))
-sns.heatmap(heatmap_data_smoothed, cmap="YlGnBu", cbar_kws={'label': 'Fréquence des montants totaux'})
-plt.title('Heatmap des positions des Montants Totaux (avec lissage)')
-plt.xlabel('Position X')
-plt.ylabel('Position Y')
-plt.show()
-
-# Option 2 : Augmenter les valeurs de la heatmap pour rendre les points plus visibles
-heatmap_data_enhanced = heatmap_data * 10  # Ajustez le facteur de multiplication
-
-plt.figure(figsize=(10, 6))
-sns.heatmap(heatmap_data_enhanced, cmap="YlGnBu", cbar_kws={'label': 'Fréquence des montants totaux'})
-plt.title('Heatmap des positions des Montants Totaux (valeurs accentuées)')
-plt.xlabel('Position X')
-plt.ylabel('Position Y')
-plt.show()
-
-# Option 3 : Changer la palette de couleurs pour un contraste plus élevé
-plt.figure(figsize=(10, 6))
-sns.heatmap(heatmap_data, cmap="hot", cbar_kws={'label': 'Fréquence des montants totaux'})
-plt.title('Heatmap des positions des Montants Totaux (palette de couleurs "hot")')
-plt.xlabel('Position X')
-plt.ylabel('Position Y')
-plt.show()
-
-# *** Distribution des taxes par nombre d'images ***
-tax_count_distribution = Counter(tax_counts_per_image)
-
-# Créer un DataFrame pour la distribution des taxes
-tax_distribution_df = pd.DataFrame(tax_count_distribution.items(), columns=['Nombre de Taxes', 'Nombre d\'Images'])
-tax_distribution_df.sort_values(by='Nombre de Taxes', inplace=True)
-
-# Produire un graphique pour le nombre d'images par nombre de taxes (avec Y comme nombre de taxes et X comme nombre d'images)
-plt.figure(figsize=(10, 6))
-plt.bar(tax_distribution_df['Nombre d\'Images'], tax_distribution_df['Nombre de Taxes'])
-plt.title('Distribution du Nombre de Taxes par Nombre d\'Images')
-plt.xlabel('Nombre d\'Images')
-plt.ylabel('Total des Taxes')
-plt.xticks(tax_distribution_df['Nombre d\'Images'])  # Étiquettes sur l'axe X
-plt.show()
-
-# Compter le nombre d'images ayant plus de 1 taxe
-images_with_multiple_taxes = sum(1 for count in tax_counts_per_image if count > 1)
-print(f"Nombre d'images ayant plusieurs taxes : {images_with_multiple_taxes}")
