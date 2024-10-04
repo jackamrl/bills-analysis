@@ -53,7 +53,7 @@ def analyze_json_data(json_data):
     return total_count, subtotal_count, tax_images, entite_counts, total_positions, tax_counts_per_image
 
 # Utilisation de la fonction pour charger les données et faire l'analyse
-train_dir = "D:\PROJET_TECH\DataleonAnalysis\data\json"
+train_dir = "your_json_folder"
 train_data = load_json_files(train_dir)
 
 total_count, subtotal_count, tax_images, entite_counts, total_positions, tax_counts_per_image = analyze_json_data(train_data)
